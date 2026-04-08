@@ -13,6 +13,9 @@ from dotenv import load_dotenv
 # Charger les variables d'environnement
 load_dotenv()
 
+# Importations locales pour CLI
+sys.path.insert(0, str(Path(__file__).parent))
+
 from agents.analyzer import AnalyzerAgent
 from agents.coder import CoderAgent
 from agents.deployer import DeployerAgent
