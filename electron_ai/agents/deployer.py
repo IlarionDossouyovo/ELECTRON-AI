@@ -54,6 +54,7 @@ class DeployerAgent:
             
             # Upload tous les fichiers via API
             files_uploaded = []
+            repo_obj = self.github.get_repo(f"{login}/{repo_name}")
             
             for file_path in path.rglob("*"):
                 if file_path.is_file() and not file_path.name.startswith("."):
@@ -65,22 +66,27 @@ class DeployerAgent:
                         content = base64.b64encode(f.read()).decode()
                     
                     try:
-                        # Essayer de mettre à jour
-                        existing = self.github.get_repo(f"{login}/{repo_name}").get_contents(str(rel_path))
-                        self.github.get_repo(f"{login}/{repo_name}").update_file(
+                        # Vérifier si le fichier existe déjà
+                        existing = repo_obj.get_contents(str(rel_path))
+                        if isinstance(existing, list):
+                            existing = existing[0]
+                        repo_obj.update_file(
                             str(rel_path),
-                            f"Add {rel_path}",
+                            f"Update {rel_path}",
                             content,
                             existing.sha
                         )
                     except Exception:
                         # Créer nouveau fichier
-                        self.github.get_repo(f"{login}/{repo_name}").create_file(
-                            str(rel_path),
-                            f"Add {rel_path}",
-                            content,
-                            branch="main"
-                        )
+                        try:
+                            repo_obj.create_file(
+                                str(rel_path),
+                                f"Add {rel_path}",
+                                content,
+                                branch="main"
+                            )
+                        except Exception as e2:
+                            print(f"Skip {rel_path}: {e2}")
                     files_uploaded.append(str(rel_path))
             
             return {
