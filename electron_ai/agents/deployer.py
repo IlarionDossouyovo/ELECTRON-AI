@@ -30,7 +30,7 @@ class DeployerAgent:
         repo_name: str,
         private: bool = False,
     ) -> dict[str, Any]:
-        """Pousse un projet vers GitHub"""
+        """Pousse un projet vers GitHub via API"""
         
         if not self.github:
             return {"error": "GITHUB_TOKEN non configuré"}
@@ -40,48 +40,53 @@ class DeployerAgent:
             return {"error": "Projet introuvable"}
         
         try:
-            # Créer ou récupérer le repo
+            import base64
+            import httpx
+            
             user = self.github.get_user()
+            login = user.login
             
-            # Initialiser git si pas encore fait
-            if not (path / ".git").exists():
-                subprocess.run(["git", "init"], cwd=path, check=True)
-            
-            # Ajouter remote
+            # Créer le repo via API
             try:
-                subprocess.run(
-                    ["git", "remote", "add", "origin", f"git@github.com:{user.login}/{repo_name}.git"],
-                    cwd=path,
-                    check=True,
-                    capture_output=True,
-                )
-            except subprocess.CalledProcessError:
-                pass  # Remote existe déjà
+                repo = self.github.get_repo(f"{login}/{repo_name}")
+            except Exception:
+                repo = user.create_repo(repo_name, private=private, auto_init=False)
             
-            # Commit
-            subprocess.run(["git", "add", "."], cwd=path, check=True)
-            try:
-                subprocess.run(
-                    ["git", "commit", "-m", "Initial commit via ELECTRON AI"],
-                    cwd=path,
-                    check=True,
-                    capture_output=True,
-                )
-            except subprocess.CalledProcessError:
-                pass  # Rien à commit
+            # Upload tous les fichiers via API
+            files_uploaded = []
             
-            # Push
-            subprocess.run(
-                ["git", "push", "-u", "origin", "main"],
-                cwd=path,
-                env={**os.environ, "GIT_SSH_COMMAND": "ssh -o StrictHostKeyChecking=no"},
-                check=True,
-            )
+            for file_path in path.rglob("*"):
+                if file_path.is_file() and not file_path.name.startswith("."):
+                    rel_path = file_path.relative_to(path)
+                    if "node_modules" in str(rel_path) or "__pycache__" in str(rel_path):
+                        continue
+                    
+                    with open(file_path, "rb") as f:
+                        content = base64.b64encode(f.read()).decode()
+                    
+                    try:
+                        # Essayer de mettre à jour
+                        existing = self.github.get_repo(f"{login}/{repo_name}").get_contents(str(rel_path))
+                        self.github.get_repo(f"{login}/{repo_name}").update_file(
+                            str(rel_path),
+                            f"Add {rel_path}",
+                            content,
+                            existing.sha
+                        )
+                    except Exception:
+                        # Créer nouveau fichier
+                        self.github.get_repo(f"{login}/{repo_name}").create_file(
+                            str(rel_path),
+                            f"Add {rel_path}",
+                            content,
+                            branch="main"
+                        )
+                    files_uploaded.append(str(rel_path))
             
             return {
-                "status": "success",
-                "repo": f"{user.login}/{repo_name}",
-                "url": f"https://github.com/{user.login}/{repo_name}",
+                "url": repo.html_url,
+                "files": len(files_uploaded),
+                "repo": repo_name
             }
             
         except Exception as e:
