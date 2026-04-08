@@ -69,6 +69,13 @@ async def run_full_workflow(
         print(f"   ❌ Erreur: {deployment['error']}")
     else:
         print(f"   ✅ GitHub: {deployment.get('url', 'N/A')}")
+        
+        # Déploiement Vercel
+        vercel = await deployer.deploy_to_vercel(deployment.get('url', ''))
+        if "error" in vercel:
+            print(f"   ⚠️ Vercel: {vercel['error']}")
+        else:
+            print(f"   ✅ Vercel: {vercel.get('url', 'N/A')}")
     
     if not skip_notifications and notifier.enabled:
         await notifier.notify_deployment(
