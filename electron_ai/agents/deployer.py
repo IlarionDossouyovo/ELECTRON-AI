@@ -76,8 +76,8 @@ class DeployerAgent:
                             content,
                             existing.sha
                         )
-                    except Exception:
-                        # Créer nouveau fichier
+                    except Exception as e:
+                        # Créer nouveau fichier - ignorer les erreurs
                         try:
                             repo_obj.create_file(
                                 str(rel_path),
@@ -85,8 +85,8 @@ class DeployerAgent:
                                 content,
                                 branch="main"
                             )
-                        except Exception as e2:
-                            print(f"Skip {rel_path}: {e2}")
+                        except Exception:
+                            pass  # Ignorer si le fichier existe déjà
                     files_uploaded.append(str(rel_path))
             
             return {
