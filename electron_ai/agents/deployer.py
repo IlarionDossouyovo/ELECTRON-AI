@@ -63,7 +63,7 @@ class DeployerAgent:
                         continue
                     
                     with open(file_path, "rb") as f:
-                        content = base64.b64encode(f.read()).decode()
+                        content = base64.b64encode(f.read()).decode("ascii")
                     
                     try:
                         # Vérifier si le fichier existe déjà
