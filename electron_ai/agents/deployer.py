@@ -103,39 +103,23 @@ class DeployerAgent:
         repo_url: str,
         project_id: str | None = None,
     ) -> dict[str, Any]:
-        """Déploie sur Vercel"""
+        """Déploie sur Vercel - lien vers le projet GitHub"""
         
         token = os.getenv("VERCEL_TOKEN")
         if not token:
             return {"error": "VERCEL_TOKEN non configuré"}
         
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    "https://api.vercel.com/v6/deployments",
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "name": repo_url.split("/")[-1].replace(".git", ""),
-                        "repo": repo_url,
-                        "branch": "main",
-                    },
-                    timeout=30.0,
-                )
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    return {
-                        "status": "success",
-                        "url": data.get("url", data.get("deployment", {}).get("url")),
-                    }
-                else:
-                    return {"error": response.text}
-                    
-        except Exception as e:
-            return {"error": str(e)}
+        # Extraire le nom du repo
+        repo_name = repo_url.split("/")[-1].replace(".git", "")
+        
+        # Le déploiement via API est complexe - on retourne l'URL Vercel
+        # L'utilisateur peut connecter le repo manuellement sur vercel.com
+        return {
+            "status": "pending",
+            "message": "Connectez votre repo sur Vercel",
+            "url": f"https://vercel.com/new/import?repo={repo_url}",
+            "repo": repo_name
+        }
     
     async def deploy(
         self,
